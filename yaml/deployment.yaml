@@ -1,0 +1,211 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "35"
+  creationTimestamp: 2019-04-15T12:29:20Z
+  generation: 67
+  labels:
+    chart: kube-master-2.0.0
+    release: jan-f965377b77d34f95aafa489e39c2b3ef
+  name: jan-f965377b77d34f95aafa489e39c2b3ef-cmanager
+  namespace: kubernikus
+  resourceVersion: "39305714"
+  selfLink: /apis/extensions/v1beta1/namespaces/kubernikus/deployments/jan-f965377b77d34f95aafa489e39c2b3ef-cmanager
+  uid: 17e6628f-5f7a-11e9-ac78-0a58644e00b4
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      account: f965377b77d34f95aafa489e39c2b3ef
+      app: controller-manager
+      kluster: jan
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/config: 46834324854e8715bd13bae1d9eabc7db0757e0a7a6ed1f34f9410323ca7a661
+        pod.alpha.kubernetes.io/init-containers: '[{"name":"apiserver-wait","image":"sapcc/hyperkube:v1.10.11","command":["sh","-c"],"args":["until
+          kubectl cluster-info --kubeconfig /etc/kubernetes/config/kubeconfig --request-timeout=4s;
+          do sleep 5; done;"],"resources":{},"volumeMounts":[{"name":"certs","readOnly":true,"mountPath":"/etc/kubernetes/certs/"},{"name":"config","readOnly":true,"mountPath":"/etc/kubernetes/config"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}]'
+        pod.beta.kubernetes.io/init-containers: '[{"name":"apiserver-wait","image":"sapcc/hyperkube:v1.10.11","command":["sh","-c"],"args":["until
+          kubectl cluster-info --kubeconfig /etc/kubernetes/config/kubeconfig --request-timeout=4s;
+          do sleep 5; done;"],"resources":{},"volumeMounts":[{"name":"certs","readOnly":true,"mountPath":"/etc/kubernetes/certs/"},{"name":"config","readOnly":true,"mountPath":"/etc/kubernetes/config"}],"terminationMessagePath":"/dev/termination-log","terminationMessagePolicy":"File","imagePullPolicy":"IfNotPresent"}]'
+      creationTimestamp: null
+      labels:
+        account: f965377b77d34f95aafa489e39c2b3ef
+        app: controller-manager
+        kluster: jan
+        release: jan-f965377b77d34f95aafa489e39c2b3ef
+    spec:
+      containers:
+      - command:
+        - /reject-proxy
+        - -v=true
+        - -namespace=kubernikus
+        - -cert-dir=/tmp/reject-cert
+        image: hub.global.cloud.sap/d074427/reject-proxy:latest
+        imagePullPolicy: Always
+        name: reject-proxy
+        ports:
+        - containerPort: 8080
+          name: reject-proxy
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /tmp/reject-cert
+          name: reject-cert-exchange
+      - args:
+        - -ce
+        - |-
+          while ! wc /tmp/reject-cert/ca.crt; do sleep 1; done
+          cp /tmp/reject-cert/ca.crt /usr/local/share/ca-certificates/reject-proxy-ca.crt
+          update-ca-certificates
+          /hyperkube \
+          controller-manager \
+          --allocate-node-cidrs=true \
+          --cloud-config=/etc/kubernetes/cloudprovider/openstack.config \
+          --cloud-provider=openstack \
+          --cluster-cidr=100.100.0.0/16 \
+          --cluster-name=kubernetes \
+          --cluster-signing-cert-file=/etc/kubernetes/certs/apiserver-nodes-ca.pem \
+          --cluster-signing-key-file=/etc/kubernetes/certs/apiserver-nodes-ca-key.pem \
+          --configure-cloud-routes=true \
+          --controllers=*,bootstrapsigner,tokencleaner \
+          --kubeconfig=/etc/kubernetes/config/kubeconfig \
+          --leader-elect=false \
+          --root-ca-file=/etc/kubernetes/certs/tls-ca.pem \
+          --service-account-private-key-file=/etc/kubernetes/certs/apiserver-clients-ca-key.pem \
+          --service-cluster-ip-range=198.18.128.0/17 \
+          --use-service-account-credentials
+        command:
+        - /bin/sh
+        env:
+        - name: http_proxy
+          value: http://127.0.0.1:8080
+        - name: https_proxy
+          value: http://127.0.0.1:8080
+        - name: no_proxy
+          value: 127.0.0.1
+        image: sapcc/hyperkube:v1.10.11
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: 10252
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: controller-manager
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 256Mi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/kubernetes/certs/
+          name: certs
+          readOnly: true
+        - mountPath: /etc/kubernetes/config
+          name: config
+          readOnly: true
+        - mountPath: /etc/kubernetes/cloudprovider
+          name: cloudprovider
+          readOnly: true
+        - mountPath: /var/lib/cloud/data/
+          name: openstack-hacks
+          readOnly: true
+        - mountPath: /tmp/reject-cert
+          name: reject-cert-exchange
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - args:
+        - until kubectl cluster-info --kubeconfig /etc/kubernetes/config/kubeconfig
+          --request-timeout=4s; do sleep 5; done;
+        command:
+        - sh
+        - -c
+        image: sapcc/hyperkube:v1.10.11
+        imagePullPolicy: IfNotPresent
+        name: apiserver-wait
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/kubernetes/certs/
+          name: certs
+          readOnly: true
+        - mountPath: /etc/kubernetes/config
+          name: config
+          readOnly: true
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: reject-proxy
+      serviceAccountName: reject-proxy
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: certs
+        secret:
+          defaultMode: 420
+          items:
+          - key: tls-ca.pem
+            path: tls-ca.pem
+          - key: apiserver-clients-system-kube-controller-manager.pem
+            path: kube-client.pem
+          - key: apiserver-clients-system-kube-controller-manager-key.pem
+            path: kube-client.key
+          - key: apiserver-nodes-ca.pem
+            path: apiserver-nodes-ca.pem
+          - key: apiserver-nodes-ca-key.pem
+            path: apiserver-nodes-ca-key.pem
+          - key: apiserver-clients-ca.pem
+            path: apiserver-clients-ca.pem
+          - key: apiserver-clients-ca-key.pem
+            path: apiserver-clients-ca-key.pem
+          secretName: jan-f965377b77d34f95aafa489e39c2b3ef-secret
+      - configMap:
+          defaultMode: 420
+          name: jan-f965377b77d34f95aafa489e39c2b3ef
+        name: config
+      - name: cloudprovider
+        secret:
+          defaultMode: 420
+          items:
+          - key: openstack.config
+            path: openstack.config
+          secretName: jan-f965377b77d34f95aafa489e39c2b3ef-generated
+      - configMap:
+          defaultMode: 420
+          name: jan-f965377b77d34f95aafa489e39c2b3ef-os-hacks
+        name: openstack-hacks
+      - emptyDir:
+          sizeLimit: "0"
+        name: reject-cert-exchange
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: 2019-06-05T08:48:00Z
+    lastUpdateTime: 2019-06-05T08:48:00Z
+    message: Deployment has minimum availability.
+    reason: MinimumReplicasAvailable
+    status: "True"
+    type: Available
+  observedGeneration: 67
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
