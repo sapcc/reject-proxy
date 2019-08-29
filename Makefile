@@ -1,8 +1,8 @@
 TARGET = reject-proxy
 GOTARGET = github.com/sapcc/$(TARGET)
 BUILDMNT = /go/src/$(GOTARGET)
-REGISTRY ?= sapcc/reject-proxy
-VERSION ?= 0.1.0
+REGISTRY ?= sapcc
+VERSION ?= 0.1.1
 IMAGE = $(REGISTRY)/$(BIN)
 BUILD_IMAGE ?= golang:1.12-alpine3.9
 DOCKER ?= docker

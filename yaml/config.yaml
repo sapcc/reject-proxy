@@ -31,8 +31,8 @@ kind: ConfigMap
 metadata:
   name: reject-proxy
 data:
-  config: |-
-    blockedUrls:
-    - name: neutron-lbaas
-      method: "POST"
-      url: "https://whatever.com:443/v2.0/lbaas.*"
+  neutron-lbaas: |
+    method: POST
+    url: https://someurl:443/v2.0/lbaas.*
+    code: "403" # optional
+    message: Go away! # optional

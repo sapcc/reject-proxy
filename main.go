@@ -24,7 +24,7 @@ import (
 
 var (
 	proxy          *goproxy.ProxyHttpServer
-	config         Config
+	config         []Config
 	verbose        bool
 	listenAddr     string
 	certDir        string
@@ -36,11 +36,11 @@ var (
 )
 
 type Config struct {
-	BlockedUrls []struct {
-		Name   string `yaml:"name"`
-		Method string `yaml:"method"`
-		URL    string `yaml:"url"`
-	} `yaml:"blockedUrls"`
+	Name    string `yaml:"name,omitempty"`
+	Method  string `yaml:"method"`
+	URL     string `yaml:"url"`
+	Code    int    `yaml:"code,omitempty"`
+	Message string `yaml:"message,omitempty"`
 }
 
 func init() {
@@ -80,7 +80,7 @@ func main() {
 		log.Fatal("Could not create client set", err)
 	}
 
-	config = Config{}
+	config = []Config{}
 	sharedInformers := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*1, namespaceName, informerListOpts)
 	configmapInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
 	stopper := make(chan struct{})
@@ -93,7 +93,7 @@ func main() {
 			updateConfig(newObj.(*v1.ConfigMap))
 		},
 		DeleteFunc: func(obj interface{}) {
-			config = Config{}
+			config = []Config{}
 		},
 	})
 	log.Printf("Starting informer.")
@@ -109,11 +109,9 @@ func main() {
 	proxy.OnRequest(blockedHosts()).DoFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
 		ctx.Logf("Request: %s %s", req.Method, req.URL)
 
-		if blockedUrls(req, ctx) {
+		if isBlocked, code, msg := blockedUrls(req, ctx); isBlocked {
 			ctx.Warnf("URL blocked: %s", req.URL)
-			return req, goproxy.NewResponse(req,
-				goproxy.ContentTypeText, http.StatusForbidden,
-				"URL is blocked.")
+			return req, goproxy.NewResponse(req, goproxy.ContentTypeText, code, msg)
 		}
 
 		return req, nil
@@ -129,9 +127,17 @@ func informerListOpts(opts *meta_v1.ListOptions) {
 
 func updateConfig(cm *v1.ConfigMap) {
 	log.Printf("Configmap has changed, updating config.")
-	err := yaml.Unmarshal([]byte(cm.Data["config"]), &config)
-	if err != nil {
-		log.Printf("Could not parse config YAML: %s", err)
+	config = []Config{}
+	for name, data := range cm.Data {
+		conf := Config{}
+		err := yaml.Unmarshal([]byte(data), &conf)
+		if err != nil {
+			log.Printf("Could not parse config YAML: %s", err)
+		}
+		if conf.Name == "" {
+			conf.Name = name
+		}
+		config = append(config, conf)
 	}
 }
 
@@ -139,10 +145,10 @@ func blockedHosts() goproxy.ReqConditionFunc {
 	return func(req *http.Request, ctx *goproxy.ProxyCtx) bool {
 		host := req.URL.Host
 
-		for _, confURL := range config.BlockedUrls {
-			parsedURL, err := url.Parse(confURL.URL)
+		for _, c := range config {
+			parsedURL, err := url.Parse(c.URL)
 			if err != nil {
-				ctx.Warnf("Could not parse URL %s: %s", confURL.URL, err)
+				ctx.Warnf("Could not parse URL %s: %s", c.URL, err)
 				return false
 			}
 			if host == parsedURL.Host {
@@ -154,18 +160,26 @@ func blockedHosts() goproxy.ReqConditionFunc {
 	}
 }
 
-func blockedUrls(req *http.Request, ctx *goproxy.ProxyCtx) bool {
+func blockedUrls(req *http.Request, ctx *goproxy.ProxyCtx) (bool, int, string) {
 	reqURL := req.URL.String()
 	reqMethod := req.Method
 
-	for _, confURL := range config.BlockedUrls {
-		match, _ := regexp.MatchString(confURL.URL, reqURL)
-		if reqMethod == confURL.Method && match {
-			return true
+	for _, c := range config {
+		match, _ := regexp.MatchString(c.URL, reqURL)
+		if reqMethod == c.Method && match {
+			code := c.Code
+			if code == 0 {
+				code = http.StatusForbidden
+			}
+			msg := c.Message
+			if msg == "" {
+				msg = "URL is blocked."
+			}
+			return true, code, msg
 		}
 	}
 
-	return false
+	return false, 0, ""
 }
 
 func kubeConfig(kubeconfig, context string) (*rest.Config, error) {
