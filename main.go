@@ -81,7 +81,7 @@ func main() {
 	}
 
 	config = []Config{}
-	sharedInformers := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*1, namespaceName, informerListOpts)
+	sharedInformers := informers.NewSharedInformerFactoryWithOptions(clientset, time.Hour*1, informers.WithNamespace(namespaceName), informers.WithTweakListOptions(informerListOpts))
 	configmapInformer := sharedInformers.Core().V1().ConfigMaps().Informer()
 	stopper := make(chan struct{})
 	defer close(stopper)

@@ -34,5 +34,5 @@ data:
   neutron-lbaas: |
     method: POST
     url: https://someurl:443/v2.0/lbaas.*
-    code: "403" # optional
+    code: 403 # optional
     message: Go away! # optional
