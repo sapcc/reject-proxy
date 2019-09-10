@@ -16,3 +16,6 @@ data:
       method: "POST"
       url: "https://whatever.com:443/v2.0/lbaas.*"
 ```
+
+## License
+This project is licensed under the Apache2 License - see the [LICENSE](LICENSE) file for details
