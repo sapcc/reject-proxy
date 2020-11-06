@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
@@ -11,7 +11,7 @@ metadata:
   name: jan-f965377b77d34f95aafa489e39c2b3ef-cmanager
   namespace: kubernikus
   resourceVersion: "39305714"
-  selfLink: /apis/extensions/v1beta1/namespaces/kubernikus/deployments/jan-f965377b77d34f95aafa489e39c2b3ef-cmanager
+  selfLink: /apis/apps/v1/namespaces/kubernikus/deployments/jan-f965377b77d34f95aafa489e39c2b3ef-cmanager
   uid: 17e6628f-5f7a-11e9-ac78-0a58644e00b4
 spec:
   replicas: 1
